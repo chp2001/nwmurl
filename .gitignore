@@ -1,0 +1,15 @@
+modules/*/conus*.*
+*.parquet
+output/*
+!output/.gitkeep
+env
+__pycache__
+.dev
+dist
+*.egg-info
+*.tar.gz
+*.dat
+/build
+*.pmtiles
+*style.json
+.vscode/
