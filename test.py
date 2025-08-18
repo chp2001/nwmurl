@@ -523,7 +523,7 @@ def simple_product_offsetter(
 if __name__ == "__main__":
     # test the simple offset function
     mem3_offset = 12
-    simple_offsetted_base_products = []
+    simple_offsetted_base_products: List[Tuple[datetime.datetime, int, int]] = []
     # for product in test_base_products[5:6]:
     for product in test_base_products:
         # print("Original product:", product)
@@ -544,6 +544,33 @@ if __name__ == "__main__":
         print("...", f"({len(simple_offsetted_base_products) - printnum} more products)")
         print(simple_offsetted_base_products[-1])
         
+    simple_dates = [] # (ref_date, target_date)
+    for product in simple_offsetted_base_products:
+        ref_date, fc, lt = product
+        reference_date = ref_date.replace(hour=fc)
+        target_date = reference_date + datetime.timedelta(hours=lt)
+        simple_dates.append((reference_date, target_date))
+    plt.figure(figsize=(10, 5))
+    simple_ref_dates = [d[0] for d in simple_dates]
+    simple_target_dates = [d[1] for d in simple_dates]
+    plt.plot(simple_ref_dates, label="Simple Offset Reference Dates", marker="o")
+    plt.plot(simple_target_dates, label="Simple Offset Target Dates", marker="x")
+    # Put a horizontal line at 202508150100
+    plt.axhline(
+        y=datetime.datetime(2025, 8, 15, 1, 0),
+        color="r",
+        linestyle="--",
+        label="2025-08-15 01:00",
+    )
+    plt.xlabel("Index")
+    plt.ylabel("Date")
+    plt.title("Simple Offset Reference and Target Dates")
+    plt.legend()
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.savefig("dist/simple_offsetted_date_plot.png")
+    # plt.show()
+        
     # Compare the two offsetted lists to find any differences
     differences = []
     for original, simple in zip(offsetted_base_products, simple_offsetted_base_products):
@@ -556,3 +583,54 @@ if __name__ == "__main__":
         print(f"Total differences: {len(differences)}")
     else:
         print("No differences found between the two offset methods.")
+        
+        
+# Next step is to make a self contained function to pull the values from any(?) url
+
+# Critical part of the url creation process that follows immediately after the prefix: 
+# f"nwm.{date.strftime('%Y%m%d')}"
+# So we can split off the beginning of the url by finding the date part, then use familiar patterns
+# to extract the cycle and lead time from the rest of the url.
+from re import search as re_search
+def harvest_from_url(
+    url: str,
+)->Tuple[Tuple[datetime.datetime, int, int], str]:
+    """
+    Extract the reference date, forecast cycle, and lead time from a URL.
+    
+    :param url: URL string to extract information from.
+    :return: Tuple containing (reference date, forecast cycle, lead time) and the URL with the values replaced with placeholders (e.g., {date}, {cycle}, {lead_time}).
+    """
+    url_match = re_search(r"nwm\.(\d{8})", url)
+    if not url_match:
+        raise ValueError(f"URL does not contain a valid date: {url}")
+    date_str = url_match.group(1)
+    date = datetime.datetime.strptime(date_str, "%Y%m%d")
+    cycle_match = re_search(r"\.t(\d{2})z.", url)
+    if not cycle_match:
+        raise ValueError(f"URL does not contain a valid cycle: {url}")
+    cycle = int(cycle_match.group(1))
+    lead_time_match = re_search(r"\.f(\d{3})\.", url)
+    if not lead_time_match:
+        raise ValueError(f"URL does not contain a valid lead time: {url}")
+    lead_time = int(lead_time_match.group(1))
+    # Create a new URL with placeholders
+    url_with_placeholders = url.replace(
+        f"nwm.{date_str}",
+        "nwm.{date:%Y%m%d}"
+    ).replace(
+        f".t{cycle:02d}z.",
+        ".t{cycle:02d}z."
+    ).replace(
+        f".f{lead_time:03d}.",
+        ".f{lead_time:03d}."
+    )
+    return (date, cycle, lead_time), url_with_placeholders
+
+if __name__ == "__main__":
+    # Test the harvest_from_url function
+    test_url = "https://noaa-nwm-pds.s3.amazonaws.com/nwm.20250814/forcing_medium_range/nwm.t12z.medium_range.forcing.f001.conus.nc"
+    (date, cycle, lead_time), url_with_placeholders = harvest_from_url(test_url)
+    print(f"Extracted Date: {date}, Cycle: {cycle}, Lead Time: {lead_time}")
+    print(f"URL with placeholders: {url_with_placeholders}")
+    print("Reconstructed URL:", url_with_placeholders.format(date=date, cycle=cycle, lead_time=lead_time))
