@@ -33,7 +33,7 @@ Then, you can use it in your Python code:
 """
 
 # Other information
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 DESCRIPTION = "URL generator tool for National Water Model data"
 
 setup(
@@ -54,4 +54,13 @@ setup(
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: Microsoft :: Windows",
     ],
+    install_requires=[
+        'setuptools',
+        'wheel',
+        'pytest',
+        'python-dateutil',
+        'requests',
+        'tqdm',
+        'gevent',
+    ]
 )
